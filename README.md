@@ -63,14 +63,12 @@ intervention_df = synth.sample(n_samples=1000)
 ## 📁 Repository Structure
 
 ```
-misata-research/
+misata-cgs/
 ├── src/misata/          # Core library
-│   ├── synthesizers/    # MISATA-CGS, Counterfactual
-│   ├── evaluation/      # Metrics (TSTR, MIA, etc.)
-│   └── llm/             # DAG extraction
+│   └── synthesizers/    # MISATA-CGS, ConditionalIntervention
 ├── experiments/         # 24 Jupyter notebooks
 ├── experiment_Results/  # All CSV + figures
-└── paper/               # Draft + reviews
+└── paper/               # arXiv draft
 ```
 
 ## 📚 Experiments
@@ -89,8 +87,8 @@ See [`experiments/`](experiments/) for all 24 notebooks validating our claims:
 ```bibtex
 @article{misata2025,
   title={MISATA-CGS: Democratizing Causal Simulation via Copula-Guided Synthesis},
-  author={...},
-  journal={arXiv preprint arXiv:2025.XXXXX},
+  author={Rasin, Muhammed},
+  journal={arXiv preprint},
   year={2025}
 }
 ```

@@ -181,8 +181,8 @@ As generative AI matures from pure generation to reasoning, synthetic data must 
 ```bibtex
 @article{misata2025,
   title={MISATA-CGS: Democratizing Causal Simulation via Copula-Guided Synthesis},
-  author={[Muhammed Rasin]},
-  journal={arXiv preprint arXiv:2025.XXXXX},
+  author={Rasin, Muhammed},
+  journal={arXiv preprint},
   year={2025}
 }
 ```
