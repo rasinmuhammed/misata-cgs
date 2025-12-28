@@ -1,0 +1,2 @@
+known_domain_edges,fictional_domain_edges,adversarial_1_edges,adversarial_2_edges,adversarial_3_edges,min_samples_for_reasonable_tstr,max_features_for_good_tstr
+4,4,2,3,0,50,100

@@ -1,0 +1,2 @@
+method,statistical_fidelity,marginal_similarity,correlation_similarity,tstr_roc_auc,tstr_f1,tstr_ratio,generation_time,rows_per_second
+MISATA-IPF,0.7260875390806579,0.6010749385749387,0.9889362801641604,0.7657157946596233,0.14081282198053807,0.8405337435880594,0.0833895206451416,312365.38834232517

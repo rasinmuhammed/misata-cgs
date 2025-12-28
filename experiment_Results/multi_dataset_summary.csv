@@ -1,0 +1,2 @@
+method,n_datasets,datasets,mean_marginal_similarity,std_marginal_similarity,mean_correlation_similarity,std_correlation_similarity,mean_tstr_ratio,std_tstr_ratio
+MISATA-IPF,3,"['Adult Census', 'California Housing', 'Fraud Detection']",0.9841527392236694,0.009916321012621502,0.9714154028986254,0.04252608310701316,0.964787139954268,0.045460801342310765

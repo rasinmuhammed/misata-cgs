@@ -1,0 +1,3 @@
+method,roc_auc,f1
+LLM-Guided,0.49850263761433083,0.0
+Random (Baseline),1.0,0.9994903160040775

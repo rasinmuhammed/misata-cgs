@@ -1,0 +1,5 @@
+method,fit_time,gen_time,total_time,tstr_auc,tstr_ratio,causal,source
+MISATA-CGS,0.5603501796722412,0.0319361686706543,0.5922863483428955,0.8998153591717217,0.9966500318372444,True,This experiment
+CTGAN,31.2,0.41,31.6,0.88,0.97,False,Exp 01B
+GaussianCopula,4.6,0.43,5.1,0.87,0.96,False,Exp 01B
+TabDDPM,600.0,30.0,630.0,0.91,0.95,False,ICML 2023 paper

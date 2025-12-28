@@ -1,0 +1,7 @@
+source,target,coefficient,description
+income,credit_limit,0.7,Higher income leads to higher credit limits
+income,spending_rate,0.5,Higher income leads to higher spending
+spending_rate,transaction_amount,0.8,Spending rate determines transactions
+distance_from_home,fraud_probability,0.3,Distance increases fraud risk
+transaction_amount,fraud_probability,0.2,High transactions increase fraud
+income,fraud_probability,-0.2,Higher income decreases fraud

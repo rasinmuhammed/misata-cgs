@@ -1,0 +1,2 @@
+method,scm_type,n_interventions,effect_correlation,mean_relative_error,median_relative_error
+MISATA (External Validation),Linear SCM with known effects,27,0.9727474531729765,1.655090828226895,0.13905724124257393

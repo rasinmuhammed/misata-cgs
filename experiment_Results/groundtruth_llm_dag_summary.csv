@@ -1,0 +1,2 @@
+method,llm_model,n_domains,mean_precision,std_precision,mean_recall,std_recall,mean_f1,std_f1,mean_shd,llm_success_rate
+MISATA-LLM (Ground-Truth Validation),llama-3.3-70b-versatile,3,1.0,0.0,1.0,0.0,1.0,0.0,0.0,1.0

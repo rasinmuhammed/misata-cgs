@@ -1,0 +1,19 @@
+# MISATA-CGS Core Dependencies
+numpy>=1.21
+pandas>=1.3
+scikit-learn>=1.0
+scipy>=1.7
+
+# Visualization
+matplotlib>=3.4
+seaborn>=0.11
+
+# ML Models
+xgboost>=1.5
+
+# LLM Integration
+groq>=0.4
+
+# Development (optional)
+jupyter>=1.0
+tqdm>=4.62

@@ -1,0 +1,4 @@
+true_positives,false_positives,false_negatives,precision,recall,f1,shd,n_true_edges,n_predicted_edges,domain,llm_success
+5,0,0,1.0,1.0,1.0,0,5,5,Economics,True
+6,0,0,1.0,1.0,1.0,0,6,6,Medical,True
+5,0,0,1.0,1.0,1.0,0,5,5,Marketing,True

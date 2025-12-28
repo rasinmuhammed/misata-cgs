@@ -1,0 +1,2 @@
+method,llm_model,n_samples,n_causal_edges,causal_accuracy,generation_time,llm_success
+MISATA-LLM (Groq),llama-3.3-70b-versatile,10000,6,0.8333333333333334,0.007221221923828125,False

@@ -1,0 +1,8 @@
+source,target,coefficient,description
+income,credit_limit,0.8,Banks trust wealthy customers more and offer higher credit limits
+income,spending_rate,0.7,Wealthy people tend to spend more
+spending_rate,transaction_amount,0.9,Spending rate determines typical transaction amounts
+distance_from_home,fraud_probability,0.6,Transactions far from home are more likely to be fraudulent
+transaction_amount,fraud_probability,0.5,Very high transaction amounts relative to spending rate indicate potential fraud
+spending_rate,fraud_probability,0.4,"High spending rates, especially for low-income customers, increase fraud probability"
+income,fraud_probability,-0.5,"Low-income customers have higher fraud rates, but this is also mediated by spending rate"
