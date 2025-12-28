@@ -170,7 +170,7 @@ As generative AI matures from pure generation to reasoning, synthetic data must 
 
 ## Reproducibility
 
-- **Code**: Available at [GitHub Repository]
+- **Code**: https://github.com/rasinmuhammed/misata-cgs
 - **Hardware**: Runs on any modern CPU
 - **Notebooks**: 24 experiments covering all claims
 
