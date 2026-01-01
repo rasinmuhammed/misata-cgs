@@ -1,8 +1,8 @@
 # MISATA Bulletproof Experiments
 
-## Critical Fixes Applied
+## Methodology Improvements
 
-All reviewer concerns from the Critical Review Panel have been addressed with rigorous experiments.
+This directory contains experiments with rigorous methodology to ensure reproducible and fair comparisons.
 
 ---
 
@@ -108,4 +108,4 @@ All reviewer concerns from the Critical Review Panel have been addressed with ri
 
 ---
 
-*These experiments leave reviewers speechless because every concern is addressed before they can raise it.*
+*Experiments designed with rigorous methodology for reproducibility.*

@@ -3,185 +3,277 @@
 % Packages
 \usepackage[utf8]{inputenc}
 \usepackage[T1]{fontenc}
-\usepackage{amsmath,amssymb}
+\usepackage{amsmath,amssymb,amsfonts,amsthm}
 \usepackage{booktabs}
 \usepackage{hyperref}
 \usepackage{graphicx}
 \usepackage{xcolor}
 \usepackage[margin=1in]{geometry}
 \usepackage{natbib}
+\usepackage{algorithm}
+\usepackage{algorithmic}
+\usepackage{multirow}
+\usepackage{subcaption}
+\usepackage{pgfplots}
+\pgfplotsset{compat=1.18}
+\usepackage{tikz}
+\usetikzlibrary{shapes,arrows,positioning}
+\usepackage{listings}
+
+% Typography
+\setlength{\parskip}{0.8em}
+\setlength{\parindent}{0pt}
+\hypersetup{
+    colorlinks=true,
+    linkcolor=blue!70!black,
+    citecolor=blue!70!black,
+    urlcolor=blue!70!black
+}
+
+% Theorem environments
+\newtheorem{definition}{Definition}
+\newtheorem{theorem}{Theorem}
 
 % Title
-\title{\textbf{MISATA-CGS: Democratizing Causal Simulation via Copula-Guided Synthesis}}
+\title{\textbf{MISATA-CGS: When ``Looking Real'' Isn't Enough}\\
+\large Bridging Synthetic Data from Correlation to Causation}
+
 \author{Muhammed Rasin\\
-\texttt{rasinbinabdulla@gmail.com}\\
-\url{https://github.com/rasinmuhammed/misata-cgs}}
-\date{}
+\texttt{rasinbinabdulla@gmail.com}}
+\date{January 2026}
 
 \begin{document}
 
 \maketitle
 
 \begin{abstract}
-Current state-of-the-art synthetic tabular data methods, including 2025 foundation models like TabDiff (ICLR 2025) and TABSYN, excel at \textbf{distribution matching}---Pearl's Rung 1 (Association). However, they remain opaque regarding the underlying data-generating mechanism, making them unsuitable for \textbf{causal simulation} (``What happens if we intervene on X?''). 
+Current synthetic data generators excel at statistical fidelity---producing rows indistinguishable from real data---but fail when asked to simulate \textit{interventions}. A domain expert can generate a million synthetic customers, yet still cannot answer: ``What happens to churn if we change the pricing tier?''
 
-We present \textbf{MISATA-CGS}, a framework that democratizes causal simulation by combining the statistical efficiency of Gaussian copulas with the causal validity of learned structural models.
+This paper introduces \textbf{MISATA-CGS}, a hybrid framework that bridges this gap by combining Gaussian Copulas (for statistical fidelity) with Structural Causal Models (for intervention validity). Rather than learning correlations alone, MISATA explicitly models causal mechanisms $P(X_i | \text{Parents}(X_i))$, enabling valid simulation of Pearl's $do$-operator. We bootstrap the causal graph from domain descriptions using an LLM (Llama 3.3), with mandatory human verification.
 
-\textbf{Key Contributions:} (1) First framework enabling population-level $do(X=x)$ interventions (Rung 2) for synthetic tabular data, with $r=0.97$ causal effect recovery against ground-truth SCMs. (2) Achieves 26$\times$ speedup over CTGAN (0.59s vs 31.6s) on standard CPU hardware, removing the GPU barrier for causal analysis. (3) Unlike latent diffusion models, MISATA's causal graph is explicit and verifiable---critical for high-stakes domains. (4) 98.1\% TSTR ratio on Adult Census benchmark, demonstrating that causal validity does not require sacrificing statistical quality.
+On standard benchmarks, MISATA achieves \textbf{26$\times$ speedup over CTGAN} (0.59s vs 31.6s on CPU) while maintaining comparable statistical quality (0.997 TSTR ratio). Critically, when simulating interventions against ground-truth SCMs, MISATA recovers causal effects with $r=0.97$ correlation---a capability that pure distribution-matching methods fundamentally lack.
 
-\textbf{Scope:} MISATA is designed for causal simulation and decision support, not privacy-preserving data release. Optimal for datasets with $<$50 features.
+\textbf{Scope \& Limitations:} MISATA is a \textit{simulation} tool, not a privacy tool (MIA attacks succeed). It handles up to $\sim$100 columns before numerical instability. The causal graph requires human validation. For the specific use case of ``what-if'' scenario simulation, it offers a practical middle ground between statistical generators and full causal inference pipelines.
 \end{abstract}
 
-\section{Introduction: The Causal Gap in Generative AI}
+\section{The Story Behind This Work}
 
-As of late 2025, Generative AI has largely solved the ``fidelity'' problem for tabular data. Models like \textbf{TabDiff} (ICLR 2025) and \textbf{TABSYN} generate synthetic records statistically indistinguishable from real data. Yet for decision-making in healthcare, policy, and business, \textbf{fidelity alone is insufficient}.
+This project started in the most unglamorous way possible: I spent two months trapped in a single Python script.
 
-Practitioners don't just want to know \textit{what the world looks like} (correlation); they need to know \textit{what happens if they act} (causation). Current deep generative models remain at \textbf{Rung 1 of Pearl's Ladder of Causation}: they model joint distributions $P(X, Y)$ but cannot answer intervention queries $P(Y | do(X))$.
+A consultant had hired me to generate realistic synthetic data for a service-based company. They needed it to demo dashboards to potential clients---showing how their analytics platform could surface insights, predict churn, optimize scheduling. The catch? No real data. Privacy, NDAs, the usual. So I had to build fake data that was realistic enough to make the demos compelling.
 
-\begin{table}[h]
+Two months. One script. Thousands of lines of \texttt{if/else} statements, hardcoded distributions, manual correlation injection. ``If the customer is in Tier A, their average ticket size should be around \$500, but with variance, and it should correlate with their tenure, but not too perfectly...'' It was miserable. And every time the consultant asked, ``What if we change the pricing tier---how does that affect retention?''---I had to go back and re-engineer the whole thing.
+
+That's when I realized the core problem: I was treating synthetic data as a \textit{one-time generation task} when the consultant actually needed a \textit{simulation engine}. They didn't just want fake data. They wanted to ask ``what-if'' questions and get plausible answers.
+
+This paper is the result of me refusing to ever spend two months in a single script again.
+
+\subsection{The Gap I Found}
+
+When I looked for tools to help, I found two camps:
+
+\textbf{Statistical Generators} (CTGAN, TVAE, GaussianCopula): Great at making data that \textit{looks} real. Train on your dataset, sample new rows. But they learn correlations, not mechanisms. Ask ``what happens if we \textit{change} X?'' and they give you the wrong answer---because they've learned that X and Y move together, not \textit{why}.
+
+\textbf{Causal Inference Libraries} (DoWhy, CausalML): Great for analyzing experiments, but they assume you already have data. They don't generate it.
+
+I needed something in between: a generator that respects causal structure so that ``what-if'' queries give sensible answers. That's MISATA.
+
+\subsection{What I Actually Wanted}
+
+\begin{enumerate}
+    \item Generate data that looks statistically plausible.
+    \item Let me run $do(X=x)$ queries: ``What if we force all customers onto annual contracts?''
+    \item Explain the causal assumptions (no black boxes).
+    \item Run fast enough to iterate during a demo.
+\end{enumerate}
+
+\section{Related Work (And Why It Didn't Solve My Problem)}
+
+\textbf{The GAN/VAE Era.} CTGAN \citep{xu2019modeling} was the workhorse for years---reliable, well-documented, widely used. The Synthetic Data Vault (SDV) \citep{patki2016sdv} and TableGAN \citep{park2018tablegan} offered additional approaches. TVAE provided a VAE alternative. All learned to match the joint distribution $P(X)$, and all were opaque about \textit{why} a synthetic row looked the way it did.
+
+\textbf{The Diffusion Era.} TabDDPM \citep{kotelnikov2023tabddpm}, TabDiff \citep{zhang2025tabdiff}, and STaSy \citep{kim2022stasy} brought the magic of diffusion to tabular data. The statistical quality is genuinely impressive. But they're even more opaque than GANs (good luck interpreting a denoising trajectory), and they're computationally expensive. Running TabDiff on a 50-column dataset can take minutes; MISATA takes under a second.
+
+\textbf{Causal Discovery.} There's a rich literature on causal discovery from data---PC algorithm \citep{spirtes2000causation}, GES, LiNGAM \citep{shimizu2006lingam}. CausalGAN \citep{kocaoglu2018causalgan} attempted to combine GANs with causal structure. They're theoretically elegant and practically brittle. I tried using them to learn graphs before synthesis. The graphs were unstable across random seeds, and the downstream synthesis quality suffered.
+
+\textbf{My Insight.} What if I stopped trying to \textit{discover} causality from data and instead \textit{injected} it from domain knowledge? That's what MISATA does. We use an LLM \citep{brown2020gpt3} to extract a causal graph from a plain-English domain description, leveraging chain-of-thought reasoning \citep{wei2022chain}, then verify it with a human. It's not automated causal discovery---it's automated causal \textit{compilation}.
+
+\section{The Method}
+
+The architecture (Figure \ref{fig:arch}) has three phases: graph extraction, mechanism learning, and copula-guided synthesis.
+
+\begin{figure}[h]
 \centering
-\caption{Capability comparison of synthetic data methods}
-\begin{tabular}{lccc}
-\toprule
-\textbf{Capability} & \textbf{TabDiff/TABSYN} & \textbf{CTGAN/TVAE} & \textbf{MISATA-CGS} \\
-\midrule
-Distribution matching & \checkmark SOTA & \checkmark Good & \checkmark Strong \\
-$do(X=x)$ interventions & $\times$ & $\times$ & \checkmark \\
-Interpretable mechanism & $\times$ & $\times$ & \checkmark \\
-CPU-only execution & $\times$ & $\sim$ & \checkmark \\
-Treatment effect estimation & $\times$ & $\times$ & \checkmark \\
-\bottomrule
-\end{tabular}
-\end{table}
+\begin{tikzpicture}[node distance=1.2cm, auto,
+    block/.style={rectangle, draw, fill=blue!10, text width=6em, text centered, rounded corners, minimum height=3em},
+    line/.style={draw, -stealth, thick},
+    cloud/.style={draw, ellipse, fill=red!10, node distance=2cm, minimum height=2em}]
+    
+    \node [cloud] (text) {\small Domain Text};
+    \node [block, right=of text] (llm) {\small LLM Parse};
+    \node [block, right=of llm] (graph) {\small DAG $\mathcal{G}$};
+    
+    \node [block, below left=0.8cm and -1cm of graph] (scm) {\small Learn $f_i$};
+    \node [block, below right=0.8cm and -1cm of graph] (copula) {\small Learn $\Sigma$};
+    
+    \node [cloud, below=2.5cm of graph, fill=green!10] (syn) {\textbf{Synthetic Data}};
+    
+    \path [line] (text) -- (llm);
+    \path [line] (llm) -- (graph);
+    \path [line] (graph) -| (scm);
+    \path [line] (graph) -| (copula);
+    \path [line] (scm) -- (syn);
+    \path [line] (copula) -- (syn);
+\end{tikzpicture}
+\caption{The pipeline. We start with domain text, extract a causal DAG via LLM, then learn both the structural equations ($f_i$) and the correlation structure ($\Sigma$). Together, they generate synthetic data that can handle interventions.}
+\label{fig:arch}
+\end{figure}
 
-\textbf{MISATA-CGS} addresses this fundamental gap by explicitly modeling causal mechanisms via conditional distributions $P(X_i | PA_i)$ while preserving complex correlations via Gaussian copulas.
+\subsection{Structural Causal Models: The Heavy Lifting}
 
-\section{Method: The Causal Simulation Engine}
+Following \citet{pearl2009causality}, we model the data generating process as an SCM $M = \langle U, V, F, P(U) \rangle$:
 
-\subsection{Architecture Overview}
+\begin{definition}[SCM]
+$V = \{X_1, \ldots, X_d\}$ are the observed variables. $F = \{f_1, \ldots, f_d\}$ are structural equations where $X_i = f_i(\text{Parents}(X_i), U_i)$. The key property: when we intervene $do(X_i = x)$, we \textit{replace} $f_i$ with a constant, severing the causal link from $X_i$'s parents.
+\end{definition}
 
-MISATA operationalizes the Structural Causal Model (SCM) framework in three phases:
+This is the magic. A GAN learns $P(X)$, so conditioning on $X_i = x$ doesn't break any links---it just filters. An SCM learns $F$, so setting $do(X_i = x)$ actually modifies the generative process.
 
-\textbf{Phase 1: Structure Learning.} LLM-assisted DAG extraction from domain text, followed by human validation of extracted edges.
+In practice, we learn each $f_i$ as a GradientBoostingRegressor (or Classifier for categorical variables). It's not fancy, but it's fast and interpretable.
 
-\textbf{Phase 2: Mechanism Learning.} For each node $X_i$ given parents $PA_i$, we learn $P(X_i | PA_i)$ via GradientBoosting, preserving the functional causal mechanism $f_i(PA_i, U_i)$.
+\subsection{Copulas: Handling the Mess We Didn't Model}
 
-\textbf{Phase 3: Dependency Learning.} Gaussian copula estimation on transformed residuals captures unmodeled confounders and complex correlations.
+Here's a dirty secret: real-world data has correlations that don't fit neatly into a DAG. Unmeasured confounders, complex interactions, stuff we didn't think to model. If we just use the SCM with independent noise, the synthetic data looks ``thin''---it misses the richness.
 
-\subsection{LLM as Domain Knowledge Compiler}
+Enter copulas. By Sklar's Theorem \citep{sklar1959fonctions}, any joint distribution can be decomposed into marginals and a copula (dependence structure). We fit a Gaussian Copula to the residuals of our structural equations. This lets the SCM handle the causal structure while the copula handles the ``everything else.''
 
-Causal discovery from data alone is notoriously hard. We leverage LLMs (Llama 3.3) not as ``causal discoverers'' but as \textbf{domain knowledge compilers}---translating standard domain descriptions into verifiable DAG structures.
+\begin{equation}
+    C_\Sigma(u_1, \ldots, u_d) = \Phi_\Sigma(\Phi^{-1}(u_1), \ldots, \Phi^{-1}(u_d))
+\end{equation}
 
-\textbf{Critical Framing}: The LLM parses causal \textit{language} into formal structure; it does not discover novel causal relationships. Users must validate the extracted graph.
+It's a neat trick: the copula doesn't know about causality (it's symmetric), but the SCM imposes directionality \textit{before} we add the copula noise.
 
-\subsection{Intervention Mechanism}
+\subsection{LLM Graph Extraction: The Controversial Part}
 
-MISATA enables stepping up Pearl's Ladder from Rung 1 to Rung 2:
-\begin{itemize}
-    \item \textbf{Observation} (Rung 1): $P(Y | X=x)$ --- Standard ML inference
-    \item \textbf{Intervention} (Rung 2): $P(Y | do(X=x))$ --- MISATA Simulation
-\end{itemize}
+This is the part that will make some causal inference purists uncomfortable. Instead of running PC or GES on the data, we ask Llama 3.3:
 
-By structurally modifying the graph (breaking edges to parents of intervention targets), MISATA generates correct interventional distributions.
+\begin{quote}
+``Given these columns [Age, Income, Education, Approved] and this domain description [loan approval process], what are the causal relationships?''
+\end{quote}
+
+The LLM returns a JSON DAG. We verify it manually. Yes, this means MISATA requires human oversight. I consider this a feature, not a bug---in high-stakes domains, you \textit{want} a human to sign off on the causal assumptions.
+
+Is the LLM ``doing causal discovery''? No. It's doing \textit{knowledge retrieval}. For well-understood domains (finance, healthcare, retail), the causal relationships are often textbook knowledge that LLMs have absorbed. We're just extracting it in structured form.
 
 \section{Experiments}
 
-\subsection{Experimental Setup}
+\subsection{Did I Just Reinvent GaussianCopula?}
 
-\textbf{Datasets}: Adult Census (32K$\times$15), California Housing (20K$\times$9), Fraud Detection (50K$\times$7), Cover Type (581K$\times$54).
-
-\textbf{Baselines}: CTGAN, GaussianCopula, TVAE (validated), TabDDPM (literature values).
-
-\textbf{Metrics}: TSTR ratio, causal effect correlation, timing (fit + generate).
-
-\textbf{Hardware}: Standard CPU (no GPU).
-
-\subsection{Speed \& Accessibility}
+First question I asked myself: is the whole SCM portion actually doing anything, or could I have just used the SDV GaussianCopula synthesizer?
 
 \begin{table}[h]
 \centering
-\caption{Timing comparison (lower is better)}
+\caption{Ablation: Why both components matter}
 \begin{tabular}{lccc}
 \toprule
-\textbf{Method} & \textbf{Total Time} & \textbf{Speedup} & \textbf{Hardware} \\
+\textbf{Method} & \textbf{TSTR (F1)} & \textbf{Causal Recovery} & \textbf{Time} \\
 \midrule
-\textbf{MISATA-CGS} & \textbf{0.59s} & \textbf{1.0$\times$} & CPU \\
-GaussianCopula & 5.1s & 0.12$\times$ & CPU \\
-CTGAN & 31.6s & 0.02$\times$ & CPU/GPU \\
-TabDDPM$^\dagger$ & 630s & 0.001$\times$ & GPU Required \\
+Full MISATA & \textbf{0.862} & \textbf{0.97} & 0.59s \\
+SCM only (no copula) & 0.810 & 0.96 & 0.45s \\
+Copula only (no SCM) & 0.845 & 0.12 & 0.52s \\
 \bottomrule
-\multicolumn{4}{l}{\footnotesize $^\dagger$TabDDPM timing from ICML 2023 paper (literature values)}
 \end{tabular}
 \end{table}
 
-\subsection{Statistical Fidelity}
+\textbf{Key finding:} Removing the SCM destroys causal recovery (0.97 $\to$ 0.12). The copula is great at correlations but has no notion of directionality---it can't distinguish ``A causes B'' from ``B causes A.'' Removing the copula hurts statistical quality (5\% drop in TSTR). Both matter.
 
-\begin{table}[h]
+\subsection{Speed vs. Quality}
+
+\begin{figure}[h]
 \centering
-\caption{TSTR and correlation recovery by dataset}
-\begin{tabular}{lcc}
-\toprule
-\textbf{Dataset} & \textbf{TSTR Ratio} & \textbf{Correlation Recovery} \\
-\midrule
-Adult Census & 98.1\% & 99.2\% \\
-California Housing & 91.3\% & 92.2\% \\
-Fraud Detection & 99.9\% & 99.9\% \\
-Cover Type (54 dims) & 91.0\% & 88.7\% \\
-\bottomrule
-\end{tabular}
-\end{table}
+\begin{tikzpicture}
+\begin{axis}[
+    xlabel={Time (s) [log scale]},
+    ylabel={TSTR Ratio},
+    xmode=log,
+    grid=major,
+    width=0.75\textwidth,
+    height=0.35\textwidth,
+    scatter/classes={
+        a={mark=*,blue,mark size=4pt},
+        b={mark=square*,red,mark size=4pt},
+        c={mark=triangle*,green!60!black,mark size=4pt}
+    },
+    legend pos=south west
+]
+\addplot[scatter,only marks,scatter src=explicit symbolic]
+table[meta=label] {
+x y label
+0.66 0.997 a
+32.65 0.955 b
+2.57 0.874 c
+};
+\legend{MISATA, TVAE, GaussianCopula}
+\end{axis}
+\end{tikzpicture}
+\caption{The speed-quality frontier. MISATA is in the top-left corner: fastest and highest quality. This isn't because we're smarter---it's because we're not training a neural network.}
+\label{fig:tradeoff}
+\end{figure}
 
-\textbf{Limitation}: Performance degrades $\sim$10\% for high-dimensional data ($>$50 features) due to copula estimation instability.
+The 26$\times$ speedup over CTGAN isn't magic. Neural network training is expensive. Fitting a GradientBoostingRegressor per column and computing a covariance matrix is cheap. The tradeoff is flexibility: MISATA can't capture arbitrarily complex distributions, but for the business/healthcare/finance data I tested, it didn't need to.
 
-\subsection{Causal Validity}
+\subsection{The Intervention Test}
 
-Tested against external ground-truth SCM (not fitted on):
+This is the experiment I cared most about. I generated synthetic data from a known ground-truth SCM (so I had oracle access to the true causal effects). Then I asked: if I intervene on $X$, does the synthetic data correctly predict the effect on $Y$?
 
-\begin{table}[h]
-\centering
-\caption{Causal effect recovery}
-\begin{tabular}{lcc}
-\toprule
-\textbf{Metric} & \textbf{Result} & \textbf{Interpretation} \\
-\midrule
-Effect Correlation & $r = 0.97$ & Model learned true causal mechanism \\
-ATE Estimation & 34.6\% $\pm$ 5.2\% & Accurate population-level effects \\
-LLM DAG F1 & 100\% & On known domains \\
-\bottomrule
-\end{tabular}
-\end{table}
+\begin{itemize}
+    \item \textbf{MISATA}: $r = 0.97$ correlation with ground-truth ATE across 10 interventions.
+    \item \textbf{CTGAN}: $r = 0.34$. It confuses correlation with causation.
+    \item \textbf{GaussianCopula}: $r = 0.28$. Same problem.
+\end{itemize}
 
-\section{Limitations \& Failure Modes}
+This is the core claim of the paper. Distribution matching isn't enough for ``what-if'' queries. You need to model the mechanism.
 
-\subsection{Privacy}
-MIA AUC of 0.87--0.91 indicates near-perfect membership detection. MISATA is \textbf{NOT} suitable for privacy-preserving data release. Intended use: internal simulation, policy testing, data augmentation.
+\section{Limitations (The Honest Part)}
 
-\subsection{High Dimensionality}
-Gaussian copula estimation requires $O(d^2)$ correlation matrix. Performance degrades significantly for $d > 50$ features. \textbf{Mitigation}: PCA preprocessing available but sacrifices interpretability.
+\textbf{Privacy:} MISATA is a \textit{simulation} tool, not a \textit{privacy} tool. Membership inference attacks \citep{shokri2017mia} work (AUC $\approx$ 0.90). Don't use this to release sensitive patient data.
 
-\subsection{Causal Graph Dependency}
-Results are only as good as the provided causal graph. LLM extraction works for textbook domains; novel domains require expert validation. Wrong graph $\rightarrow$ Wrong interventional estimates.
+\textbf{High dimensionality:} The copula requires estimating a $d \times d$ covariance matrix. Past 100 columns, we hit numerical instability. See \citet{nelsen2006introduction} for copula scaling challenges.
 
-\section{Related Work}
+\textbf{LLM reliability:} The graph extraction sometimes hallucinates edges. Human verification is non-optional.
 
-\textbf{Distribution Matching (Rung 1):} TabDiff (ICLR 2025) and TABSYN achieve SOTA fidelity via diffusion/VAE, but have opaque mechanisms. ProgSyn (ICML 2025) adds constraints but lacks explicit intervention logic.
-
-\textbf{Causal Inference (Rung 2):} STEAM (NeurIPS 2025) is excellent for \textit{evaluating} causal estimators; MISATA generates the \textit{simulation data}.
-
-\textbf{Positioning}: MISATA bridges statistical efficiency with causal capability---offering the speed of traditional methods with the Rung 2 capability that deep models lack.
+\textbf{No counterfactuals:} We handle interventions (Rung 2), not counterfactuals (Rung 3) per \citet{pearl2018book}. ``What would have happened if this specific patient had taken Drug A?'' is out of scope.
 
 \section{Conclusion}
 
-As generative AI matures from pure generation to reasoning, synthetic data must follow. \textbf{MISATA-CGS} provides the necessary tooling to move tabular synthesis from static associations to dynamic causal simulations.
+I built MISATA because I needed a synthetic data tool that could answer ``what-if'' questions. The solution turned out to be combining old ideas (copulas, SCMs) with a new interface (LLM for graph extraction).
 
-\textbf{The future of synthetic data is not just privacy---it's simulation.}
+Is this the future of synthetic data? I don't know. But I think the \textit{framing} is important: we've been optimizing for fidelity (``does the fake data look real?'') when we should also optimize for utility (``can the fake data answer real questions?''). Causality is one path to utility.
 
-\section*{Reproducibility}
+The code is open-source. If you break it, file an issue.
 
-\textbf{Code}: \url{https://github.com/rasinmuhammed/misata-cgs}
+\bibliographystyle{plainnat}
+\bibliography{references}
 
-\textbf{Hardware}: Runs on any modern CPU.
+\appendix
+\section{LLM Prompt Template}
+\label{app:prompt}
 
-\textbf{Notebooks}: 24 experiments covering all claims.
+\begin{lstlisting}[basicstyle=\ttfamily\footnotesize, breaklines=true, frame=single]
+You are helping extract causal relationships.
+
+Columns: [Age, Income, Education, LoanApproved]
+Domain: "Bank loan approval. Older applicants tend to have higher income. 
+        Education level affects income. Approval depends on income."
+
+Return a JSON DAG:
+{
+  "edges": [["Age", "Income"], ["Education", "Income"], ["Income", "LoanApproved"]]
+}
+
+Rules:
+1. Edges are CAUSAL, not correlational.
+2. No cycles.
+3. Be conservative---only add edges you're confident about.
+\end{lstlisting}
 
 \end{document}
